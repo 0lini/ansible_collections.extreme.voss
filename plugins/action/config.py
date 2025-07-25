@@ -1,0 +1,1 @@
+/home/bazzite/Schreibtisch/ansible_collections.extreme.voss/plugins/action/voss.py
