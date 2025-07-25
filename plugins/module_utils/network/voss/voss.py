@@ -29,40 +29,44 @@ import json
 import re
 
 from ansible.module_utils._text import to_native, to_text
-from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import to_list, ComplexList
+from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import (
+    to_list,
+    ComplexList,
+)
 from ansible.module_utils.connection import Connection, ConnectionError
-from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.config import NetworkConfig, ConfigLine
+from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.config import (
+    NetworkConfig,
+    ConfigLine,
+)
 
 _DEVICE_CONFIGS = {}
 
-DEFAULT_COMMENT_TOKENS = ['#', '!', '/*', '*/', 'echo']
+DEFAULT_COMMENT_TOKENS = ["#", "!", "/*", "*/", "echo"]
 
-DEFAULT_IGNORE_LINES_RE = set([
-    re.compile(r"Preparing to Display Configuration\.\.\.")
-])
+DEFAULT_IGNORE_LINES_RE = set([re.compile(r"Preparing to Display Configuration\.\.\.")])
 
 
 def get_connection(module):
-    if hasattr(module, '_voss_connection'):
+    if hasattr(module, "_voss_connection"):
         return module._voss_connection
 
     capabilities = get_capabilities(module)
-    network_api = capabilities.get('network_api')
-    if network_api == 'cliconf':
+    network_api = capabilities.get("network_api")
+    if network_api == "cliconf":
         module._voss_connection = Connection(module._socket_path)
     else:
-        module.fail_json(msg='Invalid connection type %s' % network_api)
+        module.fail_json(msg="Invalid connection type %s" % network_api)
 
     return module._voss_connection
 
 
 def get_capabilities(module):
-    if hasattr(module, '_voss_capabilities'):
+    if hasattr(module, "_voss_capabilities"):
         return module._voss_capabilities
     try:
         capabilities = Connection(module._socket_path).get_capabilities()
     except ConnectionError as exc:
-        module.fail_json(msg=to_text(exc, errors='surrogate_then_replace'))
+        module.fail_json(msg=to_text(exc, errors="surrogate_then_replace"))
     module._voss_capabilities = json.loads(capabilities)
     return module._voss_capabilities
 
@@ -72,12 +76,12 @@ def get_defaults_flag(module):
     try:
         out = connection.get_defaults_flag()
     except ConnectionError as exc:
-        module.fail_json(msg=to_text(exc, errors='surrogate_then_replace'))
-    return to_text(out, errors='surrogate_then_replace').strip()
+        module.fail_json(msg=to_text(exc, errors="surrogate_then_replace"))
+    return to_text(out, errors="surrogate_then_replace").strip()
 
 
-def get_config(module, source='running', flags=None):
-    flag_str = ' '.join(to_list(flags))
+def get_config(module, source="running", flags=None):
+    flag_str = " ".join(to_list(flags))
 
     try:
         return _DEVICE_CONFIGS[flag_str]
@@ -86,18 +90,14 @@ def get_config(module, source='running', flags=None):
         try:
             out = connection.get_config(source=source, flags=flags)
         except ConnectionError as exc:
-            module.fail_json(msg=to_text(exc, errors='surrogate_then_replace'))
-        cfg = to_text(out, errors='surrogate_then_replace').strip()
+            module.fail_json(msg=to_text(exc, errors="surrogate_then_replace"))
+        cfg = to_text(out, errors="surrogate_then_replace").strip()
         _DEVICE_CONFIGS[flag_str] = cfg
         return cfg
 
 
 def to_commands(module, commands):
-    spec = {
-        'command': dict(key=True),
-        'prompt': dict(),
-        'answer': dict()
-    }
+    spec = {"command": dict(key=True), "prompt": dict(), "answer": dict()}
     transform = ComplexList(spec, module)
     return transform(commands)
 
@@ -116,7 +116,7 @@ def load_config(module, commands):
 
     try:
         resp = connection.edit_config(commands)
-        return resp.get('response')
+        return resp.get("response")
     except ConnectionError as exc:
         module.fail_json(msg=to_text(exc))
 
@@ -125,18 +125,18 @@ def get_sublevel_config(running_config, module):
     contents = list()
     current_config_contents = list()
     sublevel_config = VossNetworkConfig(indent=0)
-    obj = running_config.get_object(module.params['parents'])
+    obj = running_config.get_object(module.params["parents"])
     if obj:
         contents = obj._children
     for c in contents:
         if isinstance(c, ConfigLine):
             current_config_contents.append(c.raw)
-    sublevel_config.add(current_config_contents, module.params['parents'])
+    sublevel_config.add(current_config_contents, module.params["parents"])
     return sublevel_config
 
 
 def ignore_line(text, tokens=None):
-    for item in (tokens or DEFAULT_COMMENT_TOKENS):
+    for item in tokens or DEFAULT_COMMENT_TOKENS:
         if text.startswith(item):
             return True
     for regex in DEFAULT_IGNORE_LINES_RE:
@@ -145,16 +145,16 @@ def ignore_line(text, tokens=None):
 
 
 def voss_parse(lines, indent=None, comment_tokens=None):
-    toplevel = re.compile(r'(^interface.*$)|(^router \w+$)|(^router vrf \w+$)')
-    exitline = re.compile(r'^exit$')
-    entry_reg = re.compile(r'([{};])')
+    toplevel = re.compile(r"(^interface.*$)|(^router \w+$)|(^router vrf \w+$)")
+    exitline = re.compile(r"^exit$")
+    entry_reg = re.compile(r"([{};])")
 
     ancestors = list()
     config = list()
     dup_parent_index = None
 
-    for line in to_native(lines, errors='surrogate_or_strict').split('\n'):
-        text = entry_reg.sub('', line).strip()
+    for line in to_native(lines, errors="surrogate_or_strict").split("\n"):
+        text = entry_reg.sub("", line).strip()
 
         cfg = ConfigLine(text)
 

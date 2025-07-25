@@ -4,13 +4,16 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
+
 __metaclass__ = type
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
+ANSIBLE_METADATA = {
+    "metadata_version": "1.1",
+    "status": ["preview"],
+    "supported_by": "community",
+}
 
 
-DOCUMENTATION = '''
+DOCUMENTATION = """
 ---
 module: voss_config
 author: "Lindsay Hill (@LindsayHill)"
@@ -171,7 +174,7 @@ options:
             and backup configuration will be copied in C(filename) within I(backup) directory.
         type: path
     type: dict
-'''
+"""
 
 EXAMPLES = """
 - name: configure system name
@@ -227,33 +230,44 @@ backup_path:
 """
 from ansible.module_utils._text import to_text
 from ansible.module_utils.connection import ConnectionError
-from ansible_collections.extreme.voss.plugins.module_utils.network.voss.voss import run_commands, get_config
-from ansible_collections.extreme.voss.plugins.module_utils.network.voss.voss import get_defaults_flag, get_connection
-from ansible_collections.extreme.voss.plugins.module_utils.network.voss.voss import get_sublevel_config, VossNetworkConfig
+from ansible_collections.extreme.voss.plugins.module_utils.network.voss.voss import (
+    run_commands,
+    get_config,
+)
+from ansible_collections.extreme.voss.plugins.module_utils.network.voss.voss import (
+    get_defaults_flag,
+    get_connection,
+)
+from ansible_collections.extreme.voss.plugins.module_utils.network.voss.voss import (
+    get_sublevel_config,
+    VossNetworkConfig,
+)
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.config import dumps
+from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.config import (
+    dumps,
+)
 
 
 def get_candidate_config(module):
     candidate = VossNetworkConfig(indent=0)
-    if module.params['src']:
-        candidate.load(module.params['src'])
-    elif module.params['lines']:
-        parents = module.params['parents'] or list()
-        commands = module.params['lines'][0]
-        if (isinstance(commands, dict)) and (isinstance(commands['command'], list)):
-            candidate.add(commands['command'], parents=parents)
-        elif (isinstance(commands, dict)) and (isinstance(commands['command'], str)):
-            candidate.add([commands['command']], parents=parents)
+    if module.params["src"]:
+        candidate.load(module.params["src"])
+    elif module.params["lines"]:
+        parents = module.params["parents"] or list()
+        commands = module.params["lines"][0]
+        if (isinstance(commands, dict)) and (isinstance(commands["command"], list)):
+            candidate.add(commands["command"], parents=parents)
+        elif (isinstance(commands, dict)) and (isinstance(commands["command"], str)):
+            candidate.add([commands["command"]], parents=parents)
         else:
-            candidate.add(module.params['lines'], parents=parents)
+            candidate.add(module.params["lines"], parents=parents)
     return candidate
 
 
 def get_running_config(module, current_config=None, flags=None):
-    running = module.params['running_config']
+    running = module.params["running_config"]
     if not running:
-        if not module.params['defaults'] and current_config:
+        if not module.params["defaults"] and current_config:
             running = current_config
         else:
             running = get_config(module, flags=flags)
@@ -262,86 +276,84 @@ def get_running_config(module, current_config=None, flags=None):
 
 
 def save_config(module, result):
-    result['changed'] = True
+    result["changed"] = True
     if not module.check_mode:
-        run_commands(module, 'save config\r')
+        run_commands(module, "save config\r")
     else:
-        module.warn('Skipping command `save config` '
-                    'due to check_mode. Configuration not copied to '
-                    'non-volatile storage')
+        module.warn(
+            "Skipping command `save config` "
+            "due to check_mode. Configuration not copied to "
+            "non-volatile storage"
+        )
 
 
 def main():
-    """ main entry point for module execution
-    """
-    backup_spec = dict(
-        filename=dict(),
-        dir_path=dict(type='path')
-    )
+    """main entry point for module execution"""
+    backup_spec = dict(filename=dict(), dir_path=dict(type="path"))
     argument_spec = dict(
-        src=dict(type='path'),
-
-        lines=dict(aliases=['commands'], type='list'),
-        parents=dict(type='list'),
-
-        before=dict(type='list'),
-        after=dict(type='list'),
-
-        match=dict(default='line', choices=['line', 'strict', 'exact', 'none']),
-        replace=dict(default='line', choices=['line', 'block']),
-
-        running_config=dict(aliases=['config']),
+        src=dict(type="path"),
+        lines=dict(aliases=["commands"], type="list"),
+        parents=dict(type="list"),
+        before=dict(type="list"),
+        after=dict(type="list"),
+        match=dict(default="line", choices=["line", "strict", "exact", "none"]),
+        replace=dict(default="line", choices=["line", "block"]),
+        running_config=dict(aliases=["config"]),
         intended_config=dict(),
-
-        defaults=dict(type='bool', default=False),
-        backup=dict(type='bool', default=False),
-        backup_options=dict(type='dict', options=backup_spec),
-
-        save_when=dict(choices=['always', 'never', 'modified', 'changed'], default='never'),
-
-        diff_against=dict(choices=['startup', 'intended', 'running']),
-        diff_ignore_lines=dict(type='list'),
+        defaults=dict(type="bool", default=False),
+        backup=dict(type="bool", default=False),
+        backup_options=dict(type="dict", options=backup_spec),
+        save_when=dict(
+            choices=["always", "never", "modified", "changed"], default="never"
+        ),
+        diff_against=dict(choices=["startup", "intended", "running"]),
+        diff_ignore_lines=dict(type="list"),
     )
 
-    mutually_exclusive = [('lines', 'src'),
-                          ('parents', 'src')]
+    mutually_exclusive = [("lines", "src"), ("parents", "src")]
 
-    required_if = [('match', 'strict', ['lines']),
-                   ('match', 'exact', ['lines']),
-                   ('replace', 'block', ['lines']),
-                   ('diff_against', 'intended', ['intended_config'])]
+    required_if = [
+        ("match", "strict", ["lines"]),
+        ("match", "exact", ["lines"]),
+        ("replace", "block", ["lines"]),
+        ("diff_against", "intended", ["intended_config"]),
+    ]
 
-    module = AnsibleModule(argument_spec=argument_spec,
-                           mutually_exclusive=mutually_exclusive,
-                           required_if=required_if,
-                           supports_check_mode=True)
+    module = AnsibleModule(
+        argument_spec=argument_spec,
+        mutually_exclusive=mutually_exclusive,
+        required_if=required_if,
+        supports_check_mode=True,
+    )
 
-    result = {'changed': False}
+    result = {"changed": False}
 
-    parents = module.params['parents'] or list()
+    parents = module.params["parents"] or list()
 
-    match = module.params['match']
-    replace = module.params['replace']
+    match = module.params["match"]
+    replace = module.params["replace"]
 
     warnings = list()
-    result['warnings'] = warnings
+    result["warnings"] = warnings
 
-    diff_ignore_lines = module.params['diff_ignore_lines']
+    diff_ignore_lines = module.params["diff_ignore_lines"]
 
     config = None
     contents = None
-    flags = get_defaults_flag(module) if module.params['defaults'] else []
+    flags = get_defaults_flag(module) if module.params["defaults"] else []
     connection = get_connection(module)
 
-    if module.params['backup'] or (module._diff and module.params['diff_against'] == 'running'):
+    if module.params["backup"] or (
+        module._diff and module.params["diff_against"] == "running"
+    ):
         contents = get_config(module, flags=flags)
         config = VossNetworkConfig(indent=0, contents=contents)
-        if module.params['backup']:
-            result['__backup__'] = contents
+        if module.params["backup"]:
+            result["__backup__"] = contents
 
-    if any((module.params['lines'], module.params['src'])):
+    if any((module.params["lines"], module.params["src"])):
         candidate = get_candidate_config(module)
-        if match != 'none':
+        if match != "none":
             config = get_running_config(module)
             config = VossNetworkConfig(contents=config, indent=0)
 
@@ -352,17 +364,17 @@ def main():
             configobjs = candidate.items
 
         if configobjs:
-            commands = dumps(configobjs, 'commands')
-            commands = commands.split('\n')
+            commands = dumps(configobjs, "commands")
+            commands = commands.split("\n")
 
-            if module.params['before']:
-                commands[:0] = module.params['before']
+            if module.params["before"]:
+                commands[:0] = module.params["before"]
 
-            if module.params['after']:
-                commands.extend(module.params['after'])
+            if module.params["after"]:
+                commands.extend(module.params["after"])
 
-            result['commands'] = commands
-            result['updates'] = commands
+            result["commands"] = commands
+            result["updates"] = commands
 
             # send the configuration commands to the device and merge
             # them with the current running config
@@ -371,86 +383,99 @@ def main():
                     try:
                         connection.edit_config(candidate=commands)
                     except ConnectionError as exc:
-                        module.fail_json(msg=to_text(commands, errors='surrogate_then_replace'))
+                        module.fail_json(
+                            msg=to_text(commands, errors="surrogate_then_replace")
+                        )
 
-            result['changed'] = True
+            result["changed"] = True
 
-    running_config = module.params['running_config']
+    running_config = module.params["running_config"]
     startup = None
 
-    if module.params['save_when'] == 'always':
+    if module.params["save_when"] == "always":
         save_config(module, result)
-    elif module.params['save_when'] == 'modified':
-        match = module.params['match']
-        replace = module.params['replace']
+    elif module.params["save_when"] == "modified":
+        match = module.params["match"]
+        replace = module.params["replace"]
         try:
             # Note we need to re-retrieve running config, not use cached version
-            running = connection.get_config(source='running')
-            startup = connection.get_config(source='startup')
-            response = connection.get_diff(candidate=startup, running=running, diff_match=match,
-                                           diff_ignore_lines=diff_ignore_lines, path=None,
-                                           diff_replace=replace)
+            running = connection.get_config(source="running")
+            startup = connection.get_config(source="startup")
+            response = connection.get_diff(
+                candidate=startup,
+                running=running,
+                diff_match=match,
+                diff_ignore_lines=diff_ignore_lines,
+                path=None,
+                diff_replace=replace,
+            )
         except ConnectionError as exc:
-            module.fail_json(msg=to_text(exc, errors='surrogate_then_replace'))
+            module.fail_json(msg=to_text(exc, errors="surrogate_then_replace"))
 
-        config_diff = response['config_diff']
+        config_diff = response["config_diff"]
         if config_diff:
             save_config(module, result)
-    elif module.params['save_when'] == 'changed' and result['changed']:
+    elif module.params["save_when"] == "changed" and result["changed"]:
         save_config(module, result)
 
     if module._diff:
         if not running_config:
             try:
                 # Note we need to re-retrieve running config, not use cached version
-                contents = connection.get_config(source='running')
+                contents = connection.get_config(source="running")
             except ConnectionError as exc:
-                module.fail_json(msg=to_text(exc, errors='surrogate_then_replace'))
+                module.fail_json(msg=to_text(exc, errors="surrogate_then_replace"))
         else:
             contents = running_config
 
         # recreate the object in order to process diff_ignore_lines
-        running_config = VossNetworkConfig(indent=0, contents=contents,
-                                           ignore_lines=diff_ignore_lines)
+        running_config = VossNetworkConfig(
+            indent=0, contents=contents, ignore_lines=diff_ignore_lines
+        )
 
-        if module.params['diff_against'] == 'running':
+        if module.params["diff_against"] == "running":
             if module.check_mode:
-                module.warn("unable to perform diff against running-config due to check mode")
+                module.warn(
+                    "unable to perform diff against running-config due to check mode"
+                )
                 contents = None
             else:
                 contents = config.config_text
 
-        elif module.params['diff_against'] == 'startup':
+        elif module.params["diff_against"] == "startup":
             if not startup:
                 try:
-                    contents = connection.get_config(source='startup')
+                    contents = connection.get_config(source="startup")
                 except ConnectionError as exc:
-                    module.fail_json(msg=to_text(exc, errors='surrogate_then_replace'))
+                    module.fail_json(msg=to_text(exc, errors="surrogate_then_replace"))
             else:
                 contents = startup
 
-        elif module.params['diff_against'] == 'intended':
-            contents = module.params['intended_config']
+        elif module.params["diff_against"] == "intended":
+            contents = module.params["intended_config"]
 
         if contents is not None:
-            base_config = VossNetworkConfig(indent=0, contents=contents,
-                                            ignore_lines=diff_ignore_lines)
+            base_config = VossNetworkConfig(
+                indent=0, contents=contents, ignore_lines=diff_ignore_lines
+            )
 
             if running_config.sha1 != base_config.sha1:
-                if module.params['diff_against'] == 'intended':
+                if module.params["diff_against"] == "intended":
                     before = running_config
                     after = base_config
-                elif module.params['diff_against'] in ('startup', 'running'):
+                elif module.params["diff_against"] in ("startup", "running"):
                     before = base_config
                     after = running_config
 
-                result.update({
-                    'changed': True,
-                    'diff': {'before': str(before), 'after': str(after)}
-                })
+                result.update(
+                    {
+                        "changed": True,
+                        "diff": {"before": str(before), "after": str(after)},
+                    }
+                )
 
     module.exit_json(**result)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

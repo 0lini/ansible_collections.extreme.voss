@@ -17,15 +17,18 @@
 #
 
 from __future__ import absolute_import, division, print_function
+
 __metaclass__ = type
 
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
+ANSIBLE_METADATA = {
+    "metadata_version": "1.1",
+    "status": ["preview"],
+    "supported_by": "community",
+}
 
 
-DOCUMENTATION = '''
+DOCUMENTATION = """
 ---
 module: voss_facts
 author: "Lindsay Hill (@LindsayHill)"
@@ -49,7 +52,7 @@ options:
         not be collected.
     required: false
     default: ['!config']
-'''
+"""
 
 EXAMPLES = """
 # Collect all facts from the device
@@ -127,7 +130,9 @@ ansible_net_neighbors:
 """
 import re
 
-from ansible_collections.extreme.voss.plugins.module_utils.network.voss.voss import run_commands
+from ansible_collections.extreme.voss.plugins.module_utils.network.voss.voss import (
+    run_commands,
+)
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.six import iteritems
 
@@ -142,7 +147,9 @@ class FactsBase(object):
         self.responses = None
 
     def populate(self):
-        self.responses = run_commands(self.module, commands=self.COMMANDS, check_rc=False)
+        self.responses = run_commands(
+            self.module, commands=self.COMMANDS, check_rc=False
+        )
 
     def run(self, cmd):
         return run_commands(self.module, commands=cmd, check_rc=False)
@@ -150,93 +157,91 @@ class FactsBase(object):
 
 class Default(FactsBase):
 
-    COMMANDS = ['show sys-info']
+    COMMANDS = ["show sys-info"]
 
     def populate(self):
         super(Default, self).populate()
         data = self.responses[0]
         if data:
-            self.facts['version'] = self.parse_version(data)
-            self.facts['serialnum'] = self.parse_serialnum(data)
-            self.facts['model'] = self.parse_model(data)
-            self.facts['hostname'] = self.parse_hostname(data)
+            self.facts["version"] = self.parse_version(data)
+            self.facts["serialnum"] = self.parse_serialnum(data)
+            self.facts["model"] = self.parse_model(data)
+            self.facts["hostname"] = self.parse_hostname(data)
 
     def parse_version(self, data):
-        match = re.search(r'SysDescr\s+: \S+ \((\S+)\)', data)
+        match = re.search(r"SysDescr\s+: \S+ \((\S+)\)", data)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
     def parse_hostname(self, data):
-        match = re.search(r'SysName\s+: (\S+)', data, re.M)
+        match = re.search(r"SysName\s+: (\S+)", data, re.M)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
     def parse_model(self, data):
-        match = re.search(r'Chassis\s+: (\S+)', data, re.M)
+        match = re.search(r"Chassis\s+: (\S+)", data, re.M)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
     def parse_serialnum(self, data):
-        match = re.search(r'Serial#\s+: (\S+)', data)
+        match = re.search(r"Serial#\s+: (\S+)", data)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
 
 class Hardware(FactsBase):
 
-    COMMANDS = [
-        'show khi performance memory'
-    ]
+    COMMANDS = ["show khi performance memory"]
 
     def populate(self):
         super(Hardware, self).populate()
         data = self.responses[0]
 
         if data:
-            match = re.search(r'Free:\s+(\d+)\s+\(KB\)', data, re.M)
+            match = re.search(r"Free:\s+(\d+)\s+\(KB\)", data, re.M)
             if match:
-                self.facts['memfree_mb'] = int(round(int(match.group(1)) / 1024, 0))
-            match = re.search(r'Used:\s+(\d+)\s+\(KB\)', data, re.M)
+                self.facts["memfree_mb"] = int(round(int(match.group(1)) / 1024, 0))
+            match = re.search(r"Used:\s+(\d+)\s+\(KB\)", data, re.M)
             if match:
                 memused_mb = int(round(int(match.group(1)) / 1024, 0))
-                self.facts['memtotal_mb'] = self.facts.get('memfree_mb', 0) + memused_mb
+                self.facts["memtotal_mb"] = self.facts.get("memfree_mb", 0) + memused_mb
 
 
 class Config(FactsBase):
 
-    COMMANDS = ['show running-config']
+    COMMANDS = ["show running-config"]
 
     def populate(self):
         super(Config, self).populate()
         data = self.responses[0]
         if data:
-            self.facts['config'] = data
+            self.facts["config"] = data
 
 
 class Interfaces(FactsBase):
 
     COMMANDS = [
-        'show interfaces gigabitEthernet interface',
-        'show interfaces gigabitEthernet name',
-        'show ip interface',
-        'show ipv6 address interface',
-        'show lldp neighbor | include Port|SysName'
+        "show interfaces gigabitEthernet interface",
+        "show interfaces gigabitEthernet name",
+        "show ip interface",
+        "show ipv6 address interface",
+        "show lldp neighbor | include Port|SysName",
     ]
 
     def populate(self):
         super(Interfaces, self).populate()
 
-        self.facts['all_ipv4_addresses'] = list()
-        self.facts['all_ipv6_addresses'] = list()
+        self.facts["all_ipv4_addresses"] = list()
+        self.facts["all_ipv6_addresses"] = list()
 
         data = self.responses[0]
         if data:
             interfaces = self.parse_interfaces(data)
-            self.facts['interfaces'] = self.populate_interfaces_eth(interfaces)
+            self.facts["interfaces"] = self.populate_interfaces_eth(interfaces)
 
         data = self.responses[1]
         if data:
@@ -254,180 +259,197 @@ class Interfaces(FactsBase):
 
         data = self.responses[4]
         if data:
-            self.facts['neighbors'] = self.parse_neighbors(data)
+            self.facts["neighbors"] = self.parse_neighbors(data)
 
     def populate_interfaces_eth(self, interfaces):
         facts = dict()
         for key, value in iteritems(interfaces):
             intf = dict()
-            match = re.match(r'^\d+\s+(\S+)\s+\w+\s+\w+\s+(\d+)\s+([a-f\d:]+)\s+(\w+)\s+(\w+)$', value)
+            match = re.match(
+                r"^\d+\s+(\S+)\s+\w+\s+\w+\s+(\d+)\s+([a-f\d:]+)\s+(\w+)\s+(\w+)$",
+                value,
+            )
             if match:
-                intf['mediatype'] = match.group(1)
-                intf['mtu'] = match.group(2)
-                intf['macaddress'] = match.group(3)
-                intf['adminstatus'] = match.group(4)
-                intf['operstatus'] = match.group(5)
-                intf['type'] = 'Ethernet'
+                intf["mediatype"] = match.group(1)
+                intf["mtu"] = match.group(2)
+                intf["macaddress"] = match.group(3)
+                intf["adminstatus"] = match.group(4)
+                intf["operstatus"] = match.group(5)
+                intf["type"] = "Ethernet"
             facts[key] = intf
         return facts
 
     def populate_interfaces_eth_additional(self, interfaces):
         for key, value in iteritems(interfaces):
             # This matches when no description is set
-            match = re.match(r'^\w+\s+\w+\s+(\w+)\s+(\d+)\s+\w+$', value)
+            match = re.match(r"^\w+\s+\w+\s+(\w+)\s+(\d+)\s+\w+$", value)
             if match:
-                self.facts['interfaces'][key]['description'] = ''
-                self.facts['interfaces'][key]['duplex'] = match.group(1)
-                self.facts['interfaces'][key]['bandwidth'] = match.group(2)
+                self.facts["interfaces"][key]["description"] = ""
+                self.facts["interfaces"][key]["duplex"] = match.group(1)
+                self.facts["interfaces"][key]["bandwidth"] = match.group(2)
             else:
                 # This matches when a description is set
-                match = re.match(r'^(.+)\s+\w+\s+\w+\s+(\w+)\s+(\d+)\s+\w+$', value)
+                match = re.match(r"^(.+)\s+\w+\s+\w+\s+(\w+)\s+(\d+)\s+\w+$", value)
                 if match:
-                    self.facts['interfaces'][key]['description'] = match.group(1).strip()
-                    self.facts['interfaces'][key]['duplex'] = match.group(2)
-                    self.facts['interfaces'][key]['bandwidth'] = match.group(3)
+                    self.facts["interfaces"][key]["description"] = match.group(
+                        1
+                    ).strip()
+                    self.facts["interfaces"][key]["duplex"] = match.group(2)
+                    self.facts["interfaces"][key]["bandwidth"] = match.group(3)
 
     def populate_ipv4_interfaces(self, data):
         for key, value in data.items():
-            if key not in self.facts['interfaces']:
-                if re.match(r'Vlan\d+', key):
-                    self.facts['interfaces'][key] = dict()
-                    self.facts['interfaces'][key]['type'] = 'VLAN'
-                elif re.match(r'Clip\d+', key):
-                    self.facts['interfaces'][key] = dict()
-                    self.facts['interfaces'][key]['type'] = 'Loopback'
-            if re.match(r'Port(\d+/\d+)', key):
-                key = re.split('Port', key)[1]
-            self.facts['interfaces'][key]['ipv4'] = list()
-            match = re.match(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', value, re.M)
+            if key not in self.facts["interfaces"]:
+                if re.match(r"Vlan\d+", key):
+                    self.facts["interfaces"][key] = dict()
+                    self.facts["interfaces"][key]["type"] = "VLAN"
+                elif re.match(r"Clip\d+", key):
+                    self.facts["interfaces"][key] = dict()
+                    self.facts["interfaces"][key]["type"] = "Loopback"
+            if re.match(r"Port(\d+/\d+)", key):
+                key = re.split("Port", key)[1]
+            self.facts["interfaces"][key]["ipv4"] = list()
+            match = re.match(
+                r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})",
+                value,
+                re.M,
+            )
             if match:
                 addr = match.group(1)
                 subnet = match.group(2)
                 ipv4 = dict(address=addr, subnet=subnet)
-                self.add_ip_address(addr, 'ipv4')
-                self.facts['interfaces'][key]['ipv4'].append(ipv4)
+                self.add_ip_address(addr, "ipv4")
+                self.facts["interfaces"][key]["ipv4"].append(ipv4)
 
     def populate_ipv6_interfaces(self, data):
-        addresses = re.split(r'-{3,}', data)[1].lstrip()
-        for line in addresses.split('\n'):
+        addresses = re.split(r"-{3,}", data)[1].lstrip()
+        for line in addresses.split("\n"):
             if not line:
                 break
 
-            match = re.match(r'^([\da-f:]+)/(\d+)\s+([CV])-(\d+)\s+.+$', line)
+            match = re.match(r"^([\da-f:]+)/(\d+)\s+([CV])-(\d+)\s+.+$", line)
             if match:
                 address = match.group(1)
                 subnet = match.group(2)
                 interface_short_name = match.group(3)
                 interface_id = match.group(4)
-                if interface_short_name == 'C':
-                    intf_type = 'Loopback'
-                    interface_name = 'Clip' + interface_id
-                elif interface_short_name == 'V':
-                    intf_type = 'VLAN'
-                    interface_name = 'Vlan' + interface_id
+                if interface_short_name == "C":
+                    intf_type = "Loopback"
+                    interface_name = "Clip" + interface_id
+                elif interface_short_name == "V":
+                    intf_type = "VLAN"
+                    interface_name = "Vlan" + interface_id
                 else:
                     # Unknown interface type, better to gracefully ignore it for now
                     break
                 ipv6 = dict(address=address, subnet=subnet)
-                self.add_ip_address(address, 'ipv6')
+                self.add_ip_address(address, "ipv6")
                 try:
-                    self.facts['interfaces'][interface_name].setdefault('ipv6', []).append(ipv6)
-                    self.facts['interfaces'][interface_name]['type'] = intf_type
+                    self.facts["interfaces"][interface_name].setdefault(
+                        "ipv6", []
+                    ).append(ipv6)
+                    self.facts["interfaces"][interface_name]["type"] = intf_type
                 except KeyError:
-                    self.facts['interfaces'][interface_name] = dict()
-                    self.facts['interfaces'][interface_name]['type'] = intf_type
-                    self.facts['interfaces'][interface_name].setdefault('ipv6', []).append(ipv6)
+                    self.facts["interfaces"][interface_name] = dict()
+                    self.facts["interfaces"][interface_name]["type"] = intf_type
+                    self.facts["interfaces"][interface_name].setdefault(
+                        "ipv6", []
+                    ).append(ipv6)
             else:
                 break
 
     def add_ip_address(self, address, family):
-        if family == 'ipv4':
-            self.facts['all_ipv4_addresses'].append(address)
+        if family == "ipv4":
+            self.facts["all_ipv4_addresses"].append(address)
         else:
-            self.facts['all_ipv6_addresses'].append(address)
+            self.facts["all_ipv6_addresses"].append(address)
 
     def parse_neighbors(self, neighbors):
         facts = dict()
-        lines = neighbors.split('Port: ')
+        lines = neighbors.split("Port: ")
         if not lines:
             return facts
         for line in lines:
-            match = re.search(r'^(\w.*?)\s+Index.*IfName\s+(\w.*)$\s+SysName\s+:\s(\S+)', line, (re.M | re.S))
+            match = re.search(
+                r"^(\w.*?)\s+Index.*IfName\s+(\w.*)$\s+SysName\s+:\s(\S+)",
+                line,
+                (re.M | re.S),
+            )
             if match:
                 intf = match.group(1)
                 if intf not in facts:
                     facts[intf] = list()
                 fact = dict()
-                fact['host'] = match.group(3)
-                fact['port'] = match.group(2)
+                fact["host"] = match.group(3)
+                fact["port"] = match.group(2)
                 facts[intf].append(fact)
         return facts
 
     def parse_interfaces(self, data):
         parsed = dict()
-        interfaces = re.split(r'-{3,}', data)[1].lstrip()
-        for line in interfaces.split('\n'):
-            if not line or re.match('^All', line):
+        interfaces = re.split(r"-{3,}", data)[1].lstrip()
+        for line in interfaces.split("\n"):
+            if not line or re.match("^All", line):
                 break
             else:
-                match = re.split(r'^(\S+)\s+', line)
+                match = re.split(r"^(\S+)\s+", line)
                 key = match[1]
                 parsed[key] = match[2].strip()
         return parsed
 
     def parse_description(self, data):
-        match = re.search(r'Description: (.+)$', data, re.M)
+        match = re.search(r"Description: (.+)$", data, re.M)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
     def parse_macaddress(self, data):
-        match = re.search(r'Hardware is (?:.*), address is (\S+)', data)
+        match = re.search(r"Hardware is (?:.*), address is (\S+)", data)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
     def parse_mtu(self, data):
-        match = re.search(r'MTU (\d+)', data)
+        match = re.search(r"MTU (\d+)", data)
         if match:
             return int(match.group(1))
-        return ''
+        return ""
 
     def parse_bandwidth(self, data):
-        match = re.search(r'BW (\d+)', data)
+        match = re.search(r"BW (\d+)", data)
         if match:
             return int(match.group(1))
-        return ''
+        return ""
 
     def parse_duplex(self, data):
-        match = re.search(r'(\w+) Duplex', data, re.M)
+        match = re.search(r"(\w+) Duplex", data, re.M)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
     def parse_mediatype(self, data):
-        match = re.search(r'media type is (.+)$', data, re.M)
+        match = re.search(r"media type is (.+)$", data, re.M)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
     def parse_type(self, data):
-        match = re.search(r'Hardware is (.+),', data, re.M)
+        match = re.search(r"Hardware is (.+),", data, re.M)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
     def parse_lineprotocol(self, data):
-        match = re.search(r'line protocol is (.+)$', data, re.M)
+        match = re.search(r"line protocol is (.+)$", data, re.M)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
     def parse_operstatus(self, data):
-        match = re.search(r'^(?:.+) is (.+),', data, re.M)
+        match = re.search(r"^(?:.+) is (.+),", data, re.M)
         if match:
             return match.group(1)
-        return ''
+        return ""
 
 
 FACT_SUBSETS = dict(
@@ -441,28 +463,24 @@ VALID_SUBSETS = frozenset(FACT_SUBSETS.keys())
 
 
 def main():
-    """main entry point for module execution
-    """
-    argument_spec = dict(
-        gather_subset=dict(default=['!config'], type='list')
-    )
+    """main entry point for module execution"""
+    argument_spec = dict(gather_subset=dict(default=["!config"], type="list"))
 
-    module = AnsibleModule(argument_spec=argument_spec,
-                           supports_check_mode=True)
+    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)
 
-    gather_subset = module.params['gather_subset']
+    gather_subset = module.params["gather_subset"]
 
     runable_subsets = set()
     exclude_subsets = set()
 
     for subset in gather_subset:
-        if subset == 'all':
+        if subset == "all":
             runable_subsets.update(VALID_SUBSETS)
             continue
 
-        if subset.startswith('!'):
+        if subset.startswith("!"):
             subset = subset[1:]
-            if subset == 'all':
+            if subset == "all":
                 exclude_subsets.update(VALID_SUBSETS)
                 continue
             exclude = True
@@ -470,7 +488,7 @@ def main():
             exclude = False
 
         if subset not in VALID_SUBSETS:
-            module.fail_json(msg='Bad subset')
+            module.fail_json(msg="Bad subset")
 
         if exclude:
             exclude_subsets.add(subset)
@@ -481,10 +499,10 @@ def main():
         runable_subsets.update(VALID_SUBSETS)
 
     runable_subsets.difference_update(exclude_subsets)
-    runable_subsets.add('default')
+    runable_subsets.add("default")
 
     facts = dict()
-    facts['gather_subset'] = list(runable_subsets)
+    facts["gather_subset"] = list(runable_subsets)
 
     instances = list()
     for key in runable_subsets:
@@ -496,7 +514,7 @@ def main():
 
     ansible_facts = dict()
     for key, value in iteritems(facts):
-        key = 'ansible_net_%s' % key
+        key = "ansible_net_%s" % key
         ansible_facts[key] = value
 
     warnings = list()
@@ -504,5 +522,5 @@ def main():
     module.exit_json(ansible_facts=ansible_facts, warnings=warnings)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

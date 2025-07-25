@@ -16,7 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import (absolute_import, division, print_function)
+from __future__ import absolute_import, division, print_function
+
 __metaclass__ = type
 
 from ansible.plugins.action.network import ActionModule as ActionNetworkModule
@@ -27,10 +28,14 @@ class ActionModule(ActionNetworkModule):
     def run(self, tmp=None, task_vars=None):
         del tmp  # tmp no longer has any effect
 
-        module_name = self._task.action.split('.')[-1]
-        self._config_module = True if module_name == 'voss_config' else False
-        persistent_connection = self._play_context.connection.split('.')[-1]
+        module_name = self._task.action.split(".")[-1]
+        self._config_module = True if module_name == "voss_config" else False
+        persistent_connection = self._play_context.connection.split(".")[-1]
 
-        if persistent_connection not in ('network_cli'):
-            return {'failed': True, 'msg': 'Connection type %s is not valid for this module' % self._play_context.connection}
+        if persistent_connection not in ("network_cli"):
+            return {
+                "failed": True,
+                "msg": "Connection type %s is not valid for this module"
+                % self._play_context.connection,
+            }
         return super(ActionModule, self).run(task_vars=task_vars)
